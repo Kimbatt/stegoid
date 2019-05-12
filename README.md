@@ -1,0 +1,2 @@
+# stegoid
+Steganography tool
