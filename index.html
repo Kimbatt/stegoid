@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8">
+<title>Stegoid</title>
+
+<style>
+body
+{
+    background: #323639;
+    color: white;
+    margin: 0px;
+}
+
+button
+{
+    background-color: #146dff;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    padding: 10px 15px 10px 15px;
+    font-family: "Verdana";
+    font-size: 24px;
+    cursor: pointer;
+    transition: 0.15s;
+    outline: none;
+}
+
+button:hover
+{
+    background-color: #54adff;
+    cursor: pointer;
+}
+
+button:disabled
+{
+    background-color: #77abff;
+    cursor: not-allowed;
+}
+
+.header
+{
+    font-size: 36px;
+    margin-bottom: 14px;
+}
+
+textarea
+{
+    font-size: 22px;
+    padding: 5px;
+    resize: none;
+    white-space: nowrap;
+    font-family: Sans-Serif;
+    white-space: pre-wrap;
+}
+
+input[type=text]
+{
+    font-size: 22px;
+    padding: 5px;
+}
+
+.sidebar-button
+{
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+#sidebar
+{
+    display: inline-table;
+    border-right: 2px solid #7c7c7c;
+    padding-right: 10px;
+    flex-shrink: 0;
+    width: 250px;
+}
+
+#content
+{
+    display: inline-table;
+    flex-grow: 1;
+    width: 100%;
+    padding-left: 10px;
+}
+
+#page
+{
+    display: flex;
+    margin: 10px;
+    width: calc(100% - 40px);
+}
+
+::placeholder
+{
+    color: #a0a0a0;
+}
+
+.loading-spinner
+{
+    display: inline-block;
+    width: 50px;
+    transform-origin: 50% 50%;
+    animation: loading-spin 0.618s linear infinite;
+    transition: opacity 0.1s linear, visibility 0.1s linear;
+}
+
+.visible-fadein
+{
+    visibility: visible;
+    opacity: 1;
+}
+
+.hidden-fadeout
+{
+    visibility: hidden;
+    opacity: 0;
+}
+
+@keyframes loading-spin
+{
+    100%
+    {
+        transform: rotate(360deg);
+    }
+}
+
+.error-text
+{
+    font-size: 24px;
+    color: red;
+    margin-bottom: 10px;
+}
+
+</style>
+</head>
+<body>
+<div id="page">
+<div id="sidebar">
+    <div class="header">Stegoid</div>
+    <button class="sidebar-button" id="encode-layout-button" disabled
+        onclick="
+            document.getElementById('encode-div').style.display='';
+            document.getElementById('decode-div').style.display='none';
+            document.getElementById('encode-layout-button').disabled = true;
+            document.getElementById('decode-layout-button').disabled = false;"
+        title="Hide a file or a text inside an image file"
+        >Hide data</button>
+    <button class="sidebar-button" id="decode-layout-button"
+        onclick="
+            document.getElementById('decode-div').style.display='';
+            document.getElementById('encode-div').style.display='none';
+            document.getElementById('decode-layout-button').disabled = true;
+            document.getElementById('encode-layout-button').disabled = false;"
+        title="Extract hidden data from an image file"
+        >Extract data</button>
+</div>
+<div id="content">
+    <div id="encode-div" style="width: 100%;">
+        <input type="file" style="display: none;" id="encode-filechooser" onclick="this.value=null" onchange="FileSelected_EncodeImage(this.files)" accept="image/*">
+        <button id="encode-filechooserbutton" onclick="document.getElementById('encode-filechooser').click()" style="margin-bottom: 10px;"
+            title="Select an image file; the data will be hidden inside this image file">Select an image file</button>
+        <div id="encode-selectedfilename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
+        <div style="margin-bottom: 10px;">
+            <div style="font-size: 22px; display: inline;" title="Choose what type of data you'd like to hide inside the image">Data type to hide:</div>
+
+            <label style="font-size: 22px; margin-left: 10px;"
+                title="Hide text inside the image">
+                <input type="radio" name="encode-type" value="text" checked
+                onchange="
+                    document.getElementById('encode-file-div').style.display='none';
+                    document.getElementById('encode-text-div').style.display='';"
+                >Text</label>
+
+            <label style="font-size: 22px; margin-left: 10px;"
+                title="Hide another file in the image">
+                <input type="radio" name="encode-type" value="file"
+                onchange="
+                    document.getElementById('encode-text-div').style.display='none';
+                    document.getElementById('encode-file-div').style.display='';"
+                >File</label>
+        </div>
+        <div id="encode-error-text" class="error-text" style="display: none;"></div>
+
+        <div id="encode-text-div">
+            <textarea id="encode-textarea" style="width: 100%; height: 200px; margin-bottom: 10px;"
+                title="This text will be hidden inside the image file" placeholder="Enter text to hide"></textarea>
+        </div>
+        <div id="encode-file-div" style="display: none;">
+            <input type="file" style="display: none;" id="encode-filetohidechooser" onclick="this.value=null" onchange="FileSelected_EncodeFileToHide(this.files)">
+            <button id="encode-filetohidebutton" onclick="document.getElementById('encode-filetohidechooser').click()" style="margin-bottom: 10px;" disabled
+                title="This file will be hidden inside the image file">Select a file to hide</button>
+            <div id="encode-selectedfiletohidename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
+        </div>
+        <input type="text" id="encode-password" placeholder="Password" style="width: 100%; margin-bottom: 10px;">
+
+        <div style="margin: 20px 0px;">
+            <div style="display: inline-block; font-size: 24px; margin-right: 10px; cursor: help; width: 300px;"
+                title="Quality of the JPEG image (1-100). Higher quality images take up more space,
+but also more data can be hidden in them without any noticeable changes to the image (if you use higher bit count)."
+                >Image quality</div>
+            <input id="encode-image-quality-slider" type="range" min="1" max="100" step="1" value="100" style="vertical-align: text-bottom; width: 200px;"
+                oninput="document.getElementById('encode-image-quality-text').innerText=this.value">
+            <div id="encode-image-quality-text" style="display: inline; margin-left: 10px; font-size: 24px;">100</div>
+
+            <div style="margin-bottom: 10px;"><!-- spacer --></div>
+
+            <div style="display: inline-block; font-size: 24px; margin-right: 10px; cursor: help; width: 300px;"
+                title="How many bits to use per 8x8 block when hiding the data.
+If the count is low, then the changes to the image itself will be unnoticeable, but also less data can be hidden.
+If the count is higher, then the changes to the image might be noticeable (especially when the quality is lower), but more data can be hidden.
+If the size of data you want to hide is small, then it will probably fit into the image with the lowest amount of bits.
+Try multiple settings, and see which one is the best for your needs."
+                >Bit count per block</div>
+            <input id="encode-image-bitcount-slider" type="range" min="1" max="8" step="1" value="1" style="vertical-align: text-bottom; width: 200px;"
+                oninput="document.getElementById('encode-image-bitcount-text').innerText=this.value">
+            <div id="encode-image-bitcount-text" style="display: inline; margin-left: 10px; font-size: 24px;">1</div>
+        </div>
+
+        <button id="encode-file-button" onclick="EncodeFile()" style="vertical-align: top;" disabled>Hide the data in the image</button>
+        <svg id="encode-spinner" class="loading-spinner hidden-fadeout" viewbox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
+        </svg>
+    </div>
+
+    <div id="decode-div" style="display: none; width: 100%">
+        <input type="file" id="decode-filechooser" style="display: none;" onclick="this.value=null" onchange="FileSelected_DecodeImage(this.files)" accept="image/jpeg">
+        <button onclick="document.getElementById('decode-filechooser').click()" style="margin-bottom: 10px;">Select a JPEG file</button>
+        <div id="decode-selectedfilename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
+        <svg id="decode-spinner" class="loading-spinner hidden-fadeout" style="vertical-align: top;" viewbox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
+        </svg>
+        <div id="decode-error-text" class="error-text" style="display: none;"></div>
+
+        <textarea id="decode-textarea" readonly style="width: 100%; height: 200px; margin-bottom: 10px;" placeholder="The extracted text will appear here"></textarea>
+        <input type="text" id="decode-password" placeholder="Password" style="width: 100%; margin-bottom: 10px;">
+        <button id="decode-file-button" onclick="DecodeFile()" disabled>Extract data from the image</button>
+    </div>
+</div>
+</div>
+
+<script>
+async function WaitUntilNextFrame(reason)
+{
+    return new Promise(resolve => window.requestAnimationFrame(resolve));
+    /*
+    return new Promise(resolve => window.requestAnimationFrame(() =>
+    {
+        console.log("wait", performance.now() | 0, reason);
+        resolve();
+    }));*/
+}
+</script>
+
+<script src="crypto-js.js"></script>
+<script src="crypto-helper.js"></script>
+<script src="encoder.js"></script>
+<script src="decoder.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
