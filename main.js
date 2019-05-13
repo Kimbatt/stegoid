@@ -11,6 +11,12 @@ first 3 bits (0, 1, 2): bitcount
     100: 5 bits
     etc
 
+next 2 bits (3, 4): secondary bit threshold: how many most significant bits are preserved of the secondary coeffs
+    00: 3 bits
+    01: 4 bits
+    10: 5 bits
+    11: 6 bits
+    
 
 The other bits are unused for now
 
@@ -81,8 +87,13 @@ async function EncodeFile()
 
     DisableInputs("encode-div", true);
 
+    const spinner = document.getElementById("encode-spinner").classList;
+    spinner.remove("hidden-fadeout");
+    spinner.add("visible-fadein");
+
     const quality = Number(document.getElementById("encode-image-quality-slider").value);
     const bitcount = Number(document.getElementById("encode-image-bitcount-slider").value);
+    const secondaryBitThreshold = Number(document.getElementById("encode-image-threshold-slider").value);
     const textBytes = StringToBytes(document.getElementById("encode-textarea").value);
 
     const data =
@@ -102,6 +113,7 @@ async function EncodeFile()
 
     let options = 0;
     options |= (bitcount - 1) & 7;
+    options |= ((secondaryBitThreshold - 3) & 3) << 3;
 
     let encoded;
     try
@@ -119,6 +131,9 @@ async function EncodeFile()
 
     if (encoded !== undefined)
         SaveJpeg(encoded.data, imageName_encode);
+        
+    spinner.remove("visible-fadein");
+    spinner.add("hidden-fadeout");
 }
 
 const saveJpegLink = document.createElement("a");
@@ -213,13 +228,14 @@ function BytesToString(byteArray)
 
 function ByteArrayToBits(bytes)
 {
-    const ret = [];
+    const ret = new Array(bytes.length * 8);
+    let index = 0;
     for (let i = 0; i < bytes.length; ++i)
     {
         const byte = bytes[i];
 
         for (let j = 0; j < 8; ++j)
-            ret.push(((byte >> j) & 1) === 1);
+            ret[index++] = ((byte >> j) & 1) === 1;
     }
 
     return ret;
@@ -298,39 +314,30 @@ function TryDecodeFile()
     const password = document.getElementById("decode-password").value;
     const passwordHash = SHA512(password, "wordarray").words;
 
-    let channelIndex = 0;
     const rowcount = blocks[0].length;
-    let rowIndex = 0;
     const colcount = blocks[0][0].length;
-    let colIndex = 0;
 
     let embedDataLength = 0;
 
-    function GetNextDataBlock()
+    function* GetDataBlock()
     {
-        const ret = blocks[channelIndex][rowIndex][colIndex];
-        ++channelIndex;
-        if (channelIndex === 3)
+        for (let rowIndex = 0; rowIndex < rowcount; ++rowIndex)
         {
-            channelIndex = 0;
-            ++colIndex;
-
-            if (colIndex === colcount)
+            for (let colIndex = 0; colIndex < colcount; ++colIndex)
             {
-                colIndex = 0;
-                ++rowIndex;
-
-                if (rowIndex === rowcount)
-                    throw "unexpected end of file\neither the password is wrong, or the file does not contain any embedded data";
+                for (let channelIndex = 0; channelIndex < 3; ++channelIndex)
+                    yield blocks[channelIndex][rowIndex][colIndex];
             }
         }
 
-        return ret;
+        throw "unexpected end of file\neither the password is wrong, or the file does not contain any embedded data";
     }
+
+    const dataBlockIterator = GetDataBlock();
 
     for (let i = 0; i < 32; ++i)
     {
-        const currentData = GetNextDataBlock();
+        const currentData = dataBlockIterator.next().value;
         const bit = (currentData[0] & 1) !== 0;
 
         embedDataLength |= bit << i;
@@ -348,7 +355,7 @@ function TryDecodeFile()
     let options = 0;
     for (let i = 0; i < 32; ++i)
     {
-        const currentData = GetNextDataBlock();
+        const currentData = dataBlockIterator.next().value;
         const bit = (currentData[0] & 1) !== 0;
 
         options |= bit << i;
@@ -357,30 +364,40 @@ function TryDecodeFile()
     options ^= passwordHash[1];
 
     const bitcount = (options & 7) + 1;
+    const acBitThreshold = ((options >> 3) & 3) + 3;
     //console.log(options);
 
-    let currentBitIndex = 0;
-    let currentData = GetNextDataBlock()[0];
-    function GetNextBit()
+    function* GetNextBit()
     {
-        const ret = (currentData >> currentBitIndex) & 1;
-
-        if (++currentBitIndex == bitcount)
+        while (true)
         {
-            currentBitIndex = 0;
-            currentData = GetNextDataBlock()[0];
-        }
+            const currentDataBlock = dataBlockIterator.next().value;
+            for (let i = 0; i < bitcount; ++i)
+                yield (currentDataBlock[0] >> i) & 1;
 
-        return ret;
+            for (let i = 1; i < 64; ++i)
+            {
+                const bitcount = BitCount(currentDataBlock[i]);
+                const availableBits = bitcount - acBitThreshold;
+                
+                if (availableBits > 0)
+                {
+                    for (let j = 0; j < availableBits; ++j)
+                        yield (currentDataBlock[i] >> j) & 1;
+                }
+            }
+        }
     }
 
     let extractedData = [];
     let currentExtractedByte = 0;
     let bitIndex = 0;
 
+    const bitIterator = GetNextBit();
+
     for (let i = 0; i < embedDataLength; ++i)
     {
-        const bit = GetNextBit();
+        const bit = bitIterator.next().value;
 
         currentExtractedByte |= bit << bitIndex;
         ++bitIndex;

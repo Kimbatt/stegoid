@@ -198,7 +198,7 @@ input[type=text]
         <div style="margin: 20px 0px;">
             <div style="display: inline-block; font-size: 24px; margin-right: 10px; cursor: help; width: 300px;"
                 title="Quality of the JPEG image (1-100). Higher quality images take up more space,
-but also more data can be hidden in them without any noticeable changes to the image (if you use higher bit count)."
+but also more data can be hidden in them without any noticeable changes to the image."
                 >Image quality</div>
             <input id="encode-image-quality-slider" type="range" min="1" max="100" step="1" value="100" style="vertical-align: text-bottom; width: 200px;"
                 oninput="document.getElementById('encode-image-quality-text').innerText=this.value">
@@ -216,6 +216,17 @@ Try multiple settings, and see which one is the best for your needs."
             <input id="encode-image-bitcount-slider" type="range" min="1" max="8" step="1" value="1" style="vertical-align: text-bottom; width: 200px;"
                 oninput="document.getElementById('encode-image-bitcount-text').innerText=this.value">
             <div id="encode-image-bitcount-text" style="display: inline; margin-left: 10px; font-size: 24px;">1</div>
+
+            <div style="margin-bottom: 10px;"><!-- spacer --></div>
+
+            <div style="display: inline-block; font-size: 24px; margin-right: 10px; cursor: help; width: 300px;"
+                title="How many bits of each AC value should be kept.
+If the value is higher, then the changes to the image will be less noticeable (it might have no effect at all).
+If the value is lower, then the changes will be more noticeable, but also more data can be fit into the image."
+                >AC bit threshold</div>
+            <input id="encode-image-threshold-slider" type="range" min="3" max="6" step="1" value="4" style="vertical-align: text-bottom; width: 200px;"
+                oninput="document.getElementById('encode-image-threshold-text').innerText=this.value">
+            <div id="encode-image-threshold-text" style="display: inline; margin-left: 10px; font-size: 24px;">4</div>
         </div>
 
         <button id="encode-file-button" onclick="EncodeFile()" style="vertical-align: top;" disabled>Hide the data in the image</button>
@@ -244,12 +255,20 @@ Try multiple settings, and see which one is the best for your needs."
 async function WaitUntilNextFrame(reason)
 {
     return new Promise(resolve => window.requestAnimationFrame(resolve));
-    /*
-    return new Promise(resolve => window.requestAnimationFrame(() =>
+}
+
+function BitCount(number)
+{
+    if (number < 0)
+        number = ~number;
+
+    let count = 0;
+    while (number != 0)
     {
-        console.log("wait", performance.now() | 0, reason);
-        resolve();
-    }));*/
+        ++count;
+        number >>= 1;
+    }
+    return count;
 }
 </script>
 

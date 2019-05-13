@@ -39,6 +39,7 @@ Basic GUI blocking jpeg encoder
 function JPEGEncoder(quality, embedData, options, passwordHash)
 {
     const bitcountPerBlock = (options & 7) + 1;
+    const ACBitThreshold = ((options >> 3) & 3) + 3;
 
     let embedDataIndex = 0;
     const embedDataLengthInBits = embedData.length;
@@ -564,7 +565,7 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
         if (bit)
             DCT[index] |= 1 << bitpos;
         else
-            DCT[index] = ~(~DCT[0] | (1 << bitpos));
+            DCT[index] = ~(~DCT[index] | (1 << bitpos));
     }
 
     function processDU(CDU, fdtbl, DC, HTDC, HTAC, type)
@@ -583,8 +584,23 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
             {
                 const bit = embedData[embedDataIndex - 64];
                 EmbedBit(bit, DU_DCT, 0, i);
-
                 ++embedDataIndex;
+            }
+
+            for (let i = 1; i < 64 && (embedDataIndex - 64) < embedDataLengthInBits; ++i)
+            {
+                const bitcount = BitCount(DU_DCT[i]);
+                const availableBits = bitcount - ACBitThreshold; // check if we can fit data in the AC values
+                
+                if (availableBits > 0)
+                {
+                    for (let j = 0; j < availableBits; ++j)
+                    {
+                        const bit2 = embedData[embedDataIndex - 64];
+                        EmbedBit(bit2, DU_DCT, i, j);
+                        ++embedDataIndex;
+                    }
+                }
             }
         }
         else if (embedDataIndex >= 32 && embedDataIndex < 64) // 32 bits for options
@@ -619,6 +635,18 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
             
             for (let i = 0; i < bitcountPerBlock; ++i)
                 EmbedBit(Math.random() < 0.5, DU_DCT, 0, i);
+                
+            for (let i = 1; i < 64; ++i)
+            {
+                const bitcount = BitCount(DU_DCT[i]);
+                const availableBits = bitcount - ACBitThreshold;
+                
+                if (availableBits > 0)
+                {
+                    for (let j = 0; j < availableBits; ++j)
+                        EmbedBit(Math.random() < 0.5, DU_DCT, i, j);
+                }
+            }
         }
 
         //ZigZag reorder
