@@ -70,7 +70,7 @@ input[type=text]
 
 #sidebar
 {
-    display: inline-table;
+    display: table-cell;
     border-right: 2px solid #7c7c7c;
     padding-right: 10px;
     flex-shrink: 0;
@@ -87,7 +87,7 @@ input[type=text]
 
 #page
 {
-    display: flex;
+    display: table;
     margin: 10px;
     width: calc(100% - 40px);
 }
@@ -104,18 +104,6 @@ input[type=text]
     transform-origin: 50% 50%;
     animation: loading-spin 0.618s linear infinite;
     transition: opacity 0.1s linear, visibility 0.1s linear;
-}
-
-.visible-fadein
-{
-    visibility: visible;
-    opacity: 1;
-}
-
-.hidden-fadeout
-{
-    visibility: hidden;
-    opacity: 0;
 }
 
 @keyframes loading-spin
@@ -230,7 +218,7 @@ If the value is lower, then the changes will be more noticeable, but also more d
         </div>
 
         <button id="encode-file-button" onclick="EncodeFile()" style="vertical-align: top;" disabled>Hide the data in the image</button>
-        <svg id="encode-spinner" class="loading-spinner hidden-fadeout" viewbox="0 0 50 50">
+        <svg id="encode-spinner" class="loading-spinner" style="visibility: hidden; opacity: 0;" viewbox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
         </svg>
     </div>
@@ -239,7 +227,7 @@ If the value is lower, then the changes will be more noticeable, but also more d
         <input type="file" id="decode-filechooser" style="display: none;" onclick="this.value=null" onchange="FileSelected_DecodeImage(this.files)" accept="image/jpeg">
         <button onclick="document.getElementById('decode-filechooser').click()" style="margin-bottom: 10px;">Select a JPEG file</button>
         <div id="decode-selectedfilename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
-        <svg id="decode-spinner" class="loading-spinner hidden-fadeout" style="vertical-align: top;" viewbox="0 0 50 50">
+        <svg id="decode-spinner" class="loading-spinner" style="vertical-align: top; visibility: hidden; opacity: 0;" viewbox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
         </svg>
         <div id="decode-error-text" class="error-text" style="display: none;"></div>
@@ -252,9 +240,14 @@ If the value is lower, then the changes will be more noticeable, but also more d
 </div>
 
 <script>
-async function WaitUntilNextFrame(reason)
+async function WaitUntilNextFrame()
 {
     return new Promise(resolve => window.requestAnimationFrame(resolve));
+}
+
+async function WaitFor(timeout)
+{
+    return new Promise(resolve => window.setTimeout(resolve, timeout));
 }
 
 function BitCount(number)

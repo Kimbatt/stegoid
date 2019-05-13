@@ -87,15 +87,16 @@ async function EncodeFile()
 
     DisableInputs("encode-div", true);
 
-    const spinner = document.getElementById("encode-spinner").classList;
-    spinner.remove("hidden-fadeout");
-    spinner.add("visible-fadein");
+    const spinner = document.getElementById("encode-spinner").style;
+    spinner.visibility = "visible";
+    spinner.opacity = "1";
 
     const quality = Number(document.getElementById("encode-image-quality-slider").value);
     const bitcount = Number(document.getElementById("encode-image-bitcount-slider").value);
     const secondaryBitThreshold = Number(document.getElementById("encode-image-threshold-slider").value);
     const textBytes = StringToBytes(document.getElementById("encode-textarea").value);
 
+    await WaitFor(100); // need this for the animation to show up in firefox
     const data =
     {
         data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
@@ -132,11 +133,13 @@ async function EncodeFile()
     if (encoded !== undefined)
         SaveJpeg(encoded.data, imageName_encode);
         
-    spinner.remove("visible-fadein");
-    spinner.add("hidden-fadeout");
+    spinner.visibility = "hidden";
+    spinner.opacity = "0";
 }
 
 const saveJpegLink = document.createElement("a");
+saveJpegLink.style.display = "none";
+document.body.appendChild(saveJpegLink);
 function SaveJpeg(data, name)
 {
     const idx = name.lastIndexOf(".");
@@ -147,11 +150,17 @@ function SaveJpeg(data, name)
     
     saveJpegLink.download = name;
 
-    const url = window.URL.createObjectURL(new Blob([data]));
-    saveJpegLink.href = url;
-    saveJpegLink.click();
+    const blob = new Blob([data], {type: "image/jpeg"});
+    if (window.navigator.msSaveOrOpenBlob)
+        window.navigator.msSaveOrOpenBlob(blob, name);
+    else
+    {
+        const url = window.URL.createObjectURL(blob);
+        saveJpegLink.href = url;
+        saveJpegLink.click();
 
-    window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(url);
+    }
 }
 
 function StringToBytes(text)
@@ -253,9 +262,9 @@ function FileSelected_DecodeImage(files)
     const file = files[0];
     const fileNameDiv = document.getElementById("decode-selectedfilename");
     fileNameDiv.innerText = "Decoding JPEG format";
-    const spinner = document.getElementById("decode-spinner").classList;
-    spinner.remove("hidden-fadeout");
-    spinner.add("visible-fadein");
+    const spinner = document.getElementById("decode-spinner").style;
+    spinner.visibility = "visible";
+    spinner.opacity = "1";
 
     const decodeButton = document.getElementById("decode-file-button");
     decodeButton.disabled = true;
@@ -280,8 +289,8 @@ function FileSelected_DecodeImage(files)
         }
 
         fileNameDiv.innerText = file.name;
-        spinner.remove("visible-fadein");
-        spinner.add("hidden-fadeout");
+        spinner.visibility = "hidden";
+        spinner.opacity = "0";
         
         if (imageIsLoaded_decode)
             decodeButton.disabled = false;

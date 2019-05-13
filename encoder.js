@@ -812,7 +812,7 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
 
         if (embedDataIndex - 64 < embedDataLengthInBits)
         {
-            throw new Error("could not fit the data into the image (tried to fit " + embedDataLengthInBits + " bits, but only " + (embedDataIndex - 64) + " could be fit)");
+            throw "could not fit the data into the image (tried to fit " + (embedDataLengthInBits >> 3) + " bytes, but only " + ((embedDataIndex - 64) >> 3) + " bytes could be fit)";
         }
 
         ////////////////////////////////////////////////////////////////
