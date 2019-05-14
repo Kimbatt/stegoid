@@ -482,7 +482,6 @@ async function DecodeFile()
             saveExtractedFileLink.download = fileName;
             saveExtractedFileLink.href = url;
             downloadButton.onclick = () => saveExtractedFileLink.click();
-            //window.URL.revokeObjectURL(url);
         }
 
         const fileSize =decodedBytes.length - 1 - fileNameLength;
@@ -545,7 +544,6 @@ async function TryDecodeFile()
     if (embedDataLength === 0)
         throw "the file does not contain any embedded data";
 
-    //console.log(embedDataLength);
     embedDataLength = embedDataLength >>> 0; // int32 to uint32
     embedDataLength *= 8; // bytes to bits
 
@@ -563,7 +561,6 @@ async function TryDecodeFile()
     const bitcount = (options & 7) + 1;
     const acBitThreshold = ((options >> 3) & 3) + 3;
     const dataType = (((options >> 5) & 1) === 0) ? "text" : "file";
-    //console.log(options);
 
     await WaitUntilNextFrame();
 
@@ -620,10 +617,4 @@ async function TryDecodeFile()
         throw "wrong password";
     
     return [decryptedDataBytes, dataType];
-/*
-    const resultText = BytesToString(WordArrayToBytes(decryptedDataBytes));
-    if (resultText === null)
-        throw "the decoded text is not a valid utf-8 string (maybe the password is wrong)";
-    
-    return resultText;*/
 }
