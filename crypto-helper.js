@@ -75,7 +75,7 @@ function AES256Decrypt(ciphertext_bytearray, passphrase)
     const cipherParams = CryptoJS.lib.CipherParams.create({ ciphertext: ciphertext, salt: salt });
 
     const ret = CryptoJS.AES.decrypt(cipherParams, passphrase);
-    return ret.sigBytes > 0 ? ret : null;
+    return ret.sigBytes > 0 ? WordArrayToBytes(ret) : null;
 }
 
 function AES256DecryptToText(ciphertext_bytearray, passphrase)

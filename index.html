@@ -155,7 +155,7 @@ input[type=text]
 
             <label style="font-size: 22px; margin-left: 10px;"
                 title="Hide text inside the image">
-                <input type="radio" name="encode-type" value="text" checked
+                <input id="encode-type-radio-text" type="radio" name="encode-type" value="text" checked
                 onchange="
                     document.getElementById('encode-file-div').style.display='none';
                     document.getElementById('encode-text-div').style.display='';"
@@ -163,7 +163,7 @@ input[type=text]
 
             <label style="font-size: 22px; margin-left: 10px;"
                 title="Hide another file in the image">
-                <input type="radio" name="encode-type" value="file"
+                <input id="encode-type-radio-file" type="radio" name="encode-type" value="file"
                 onchange="
                     document.getElementById('encode-text-div').style.display='none';
                     document.getElementById('encode-file-div').style.display='';"
@@ -177,7 +177,7 @@ input[type=text]
         </div>
         <div id="encode-file-div" style="display: none;">
             <input type="file" style="display: none;" id="encode-filetohidechooser" onclick="this.value=null" onchange="FileSelected_EncodeFileToHide(this.files)">
-            <button id="encode-filetohidebutton" onclick="document.getElementById('encode-filetohidechooser').click()" style="margin-bottom: 10px;" disabled
+            <button id="encode-filetohidebutton" onclick="document.getElementById('encode-filetohidechooser').click()" style="margin: 10px 0px 30px 0px;" disabled
                 title="This file will be hidden inside the image file">Select a file to hide</button>
             <div id="encode-selectedfiletohidename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
         </div>

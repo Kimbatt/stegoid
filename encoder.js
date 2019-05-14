@@ -812,7 +812,11 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
 
         if (embedDataIndex - 64 < embedDataLengthInBits)
         {
-            throw "could not fit the data into the image (tried to fit " + (embedDataLengthInBits >> 3) + " bytes, but only " + ((embedDataIndex - 64) >> 3) + " bytes could be fit)";
+            throw "could not fit the data into the image (tried to fit " +
+                (embedDataLengthInBits >> 3).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+                " bytes, but only " +
+                ((embedDataIndex - 64) >> 3).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") +
+                " bytes could be fit)";
         }
 
         ////////////////////////////////////////////////////////////////

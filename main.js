@@ -3,7 +3,7 @@
 
 Options: 32 bits
 
-first 3 bits (0, 1, 2): bitcount
+bits 0, 1, 2: bitcount
     000: 1 bit
     001: 2 bits
     010: 3 bits
@@ -11,11 +11,15 @@ first 3 bits (0, 1, 2): bitcount
     100: 5 bits
     etc
 
-next 2 bits (3, 4): secondary bit threshold: how many most significant bits are preserved of the secondary coeffs
+bits 3, 4: secondary bit threshold: how many most significant bits are preserved of the secondary coeffs
     00: 3 bits
     01: 4 bits
     10: 5 bits
     11: 6 bits
+
+bit 5: data type
+    0: text
+    1: file
     
 
 The other bits are unused for now
@@ -29,6 +33,7 @@ const ctx = canvas.getContext("2d");
 
 let imageIsLoaded_encode = false;
 let imageName_encode;
+let selectedImageFile;
 
 function FileSelected_EncodeImage(files)
 {
@@ -43,6 +48,7 @@ function FileSelected_EncodeImage(files)
 
     imageIsLoaded_encode = false;
     const file = files[0];
+    selectedImageFile = file;
     document.getElementById("encode-selectedfilename").innerText = file.name;
     imageName_encode = file.name;
 
@@ -73,6 +79,73 @@ function FileSelected_EncodeImage(files)
     fr.readAsDataURL(file);
 }
 
+let fileToHideBytes;
+let isFileToHideLoading = false;
+function FileSelected_EncodeFileToHide(files)
+{
+    if (isFileToHideLoading)
+        return;
+
+    const fileToHideNameDiv = document.getElementById("encode-selectedfiletohidename");
+    fileToHideNameDiv.innerText = "";
+    
+    const fileChooserButton = document.getElementById("encode-filetohidebutton");
+    fileChooserButton.disabled = true;
+    isFileToHideLoading = true;
+    fileToHideBytes = undefined;
+    const file = files[0];
+    
+    const errorText = document.getElementById("encode-error-text");
+    errorText.style.display = "none";
+
+    if (file.size >= selectedImageFile.size)
+    {
+        errorText.style.display = "";
+        errorText.innerText = "Error: file size is too big";
+        return;
+    }
+
+    const fileNameBytes = StringToBytes(file.name);
+    if (fileNameBytes.length > 255)
+    {
+        errorText.style.display = "";
+        errorText.innerText = "Error: file name is too long";
+        return;
+    }
+
+    const fileNameLength = fileNameBytes.length;
+    const fileSizeBytes = new Uint8Array(5);
+    fileSizeBytes[0] = fileNameLength;
+    fileSizeBytes[1] = (file.size >>> 0) & 0xff;
+    fileSizeBytes[2] = (file.size >>> 8) & 0xff;
+    fileSizeBytes[3] = (file.size >>> 16) & 0xff;
+    fileSizeBytes[4] = (file.size >>> 24) & 0xff;
+    
+    const fr = new FileReader();
+    fr.onload = function(ev)
+    {
+        const fileBytes = new Uint8Array(ev.target.result);
+        const finalBytes = new Uint8Array(5 + fileNameBytes.length + fileBytes.length);
+        finalBytes.set(fileSizeBytes, 0);
+        finalBytes.set(fileNameBytes, 5);
+        finalBytes.set(fileBytes, fileNameBytes.length + 5);
+
+        fileToHideBytes = finalBytes;
+        isFileToHideLoading = false;
+        fileChooserButton.disabled = false;
+
+        fileToHideNameDiv.innerText = file.name;
+    };
+
+    fr.onerror = () =>
+    {
+        isFileToHideLoading = false;
+        fileChooserButton.disabled = false;
+    };
+
+    fr.readAsArrayBuffer(file);
+}
+
 function DisableInputs(element, disable)
 {
     const div = document.getElementById(element);
@@ -85,16 +158,46 @@ async function EncodeFile()
     if (!imageIsLoaded_encode)
         return;
 
-    DisableInputs("encode-div", true);
-
-    const spinner = document.getElementById("encode-spinner").style;
-    spinner.visibility = "visible";
-    spinner.opacity = "1";
+    const dataType = document.getElementById("encode-type-radio-text").checked ? "text" : "file";
+    const errorText = document.getElementById("encode-error-text");
 
     const quality = Number(document.getElementById("encode-image-quality-slider").value);
     const bitcount = Number(document.getElementById("encode-image-bitcount-slider").value);
     const secondaryBitThreshold = Number(document.getElementById("encode-image-threshold-slider").value);
-    const textBytes = StringToBytes(document.getElementById("encode-textarea").value);
+    let dataBytes;
+    
+    if (dataType === "text")
+    {
+        dataBytes = StringToBytes(document.getElementById("encode-textarea").value);
+        if (dataBytes.length === 0)
+        {
+            errorText.style.display = "";
+            errorText.innerText = "Error: text is empty";
+            return;
+        }
+    }
+    else
+    {
+        if (fileToHideBytes === undefined)
+        {
+            errorText.style.display = "";
+
+            if (isFileToHideLoading)
+                errorText.innerText = "Error: the selected file is still loading, try again in a few seconds";
+            else
+                errorText.innerText = "Error: no file selected to hide";
+
+            return;
+        }
+        else
+            dataBytes = fileToHideBytes;
+    }
+
+    errorText.style.display = "none";
+    DisableInputs("encode-div", true);
+    const spinner = document.getElementById("encode-spinner").style;
+    spinner.visibility = "visible";
+    spinner.opacity = "1";
 
     await WaitFor(100); // need this for the animation to show up in firefox
     const data =
@@ -109,12 +212,13 @@ async function EncodeFile()
     const password = document.getElementById("encode-password").value;
     const passwordHash = SHA512(password, "wordarray").words;
 
-    const encryptedBytes = AES256Encrypt(BytesToWordArray(textBytes), password);
+    const encryptedBytes = AES256Encrypt(BytesToWordArray(dataBytes), password);
     const encryptedBits = ByteArrayToBits(encryptedBytes);
 
     let options = 0;
     options |= (bitcount - 1) & 7;
     options |= ((secondaryBitThreshold - 3) & 3) << 3;
+    options |= (dataType === "text" ? 0 : 1) << 5;
 
     let encoded;
     try
@@ -123,7 +227,6 @@ async function EncodeFile()
     }
     catch (e)
     {
-        const errorText = document.getElementById("encode-error-text");
         errorText.style.display = "";
         errorText.innerText = "Error: " + e;
     }
@@ -302,18 +405,50 @@ function FileSelected_DecodeImage(files)
 function DecodeFile()
 {
     const errorText = document.getElementById("decode-error-text");
+    errorText.style.display = "none";
+
     const textarea = document.getElementById("decode-textarea");
     textarea.value = "";
 
+    let decodedBytes;
+    let dataType;
     try
     {
-        textarea.value = TryDecodeFile();
+        const decodedData = TryDecodeFile();
+        decodedBytes = decodedData[0];
+        dataType = decodedData[1];
         errorText.style.display = "none";
     }
     catch (e)
     {
         errorText.innerText = "Cannot extract data from image: " + e;
         errorText.style.display = "";
+        return;
+    }
+
+    if (dataType === "text")
+    {
+        const resultText = BytesToString(WordArrayToBytes(decodedBytes));
+        if (resultText === null)
+        {
+            errorText.innerText = "Error: the decoded text is not a valid utf-8 string (maybe the password is wrong)";
+            errorText.style.display = "";
+            return;
+        }
+
+        textarea.value = resultText;
+    }
+    else // dataType === "file"
+    {
+        const fileNameLength = decodedBytes[0];
+        const fileSize = decodedBytes[1] | (decodedBytes[2] << 8) | (decodedBytes[3] << 16) | (decodedBytes[4] << 24);
+
+        const fileName = BytesToString(decodedBytes.subarray(5, 5 + fileNameLength));
+
+        console.log("filename: " + fileName);
+
+        const fileBytes = decodedBytes.subarray(5 + fileNameLength);
+        console.log(fileBytes);
     }
 }
 
@@ -374,6 +509,7 @@ function TryDecodeFile()
 
     const bitcount = (options & 7) + 1;
     const acBitThreshold = ((options >> 3) & 3) + 3;
+    const dataType = (((options >> 5) & 1) === 0) ? "text" : "file";
     //console.log(options);
 
     function* GetNextBit()
@@ -421,10 +557,12 @@ function TryDecodeFile()
     const decryptedDataBytes = AES256Decrypt(new Uint8Array(extractedData), password);
     if (decryptedDataBytes === null)
         throw "wrong password";
-
+    
+    return [decryptedDataBytes, dataType];
+/*
     const resultText = BytesToString(WordArrayToBytes(decryptedDataBytes));
     if (resultText === null)
         throw "the decoded text is not a valid utf-8 string (maybe the password is wrong)";
     
-    return resultText;
+    return resultText;*/
 }
