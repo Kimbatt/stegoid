@@ -34,6 +34,7 @@ const ctx = canvas.getContext("2d");
 let imageIsLoaded_encode = false;
 let imageName_encode;
 let selectedImageFile;
+let selectedImageData;
 
 function FileSelected_EncodeImage(files)
 {
@@ -61,6 +62,8 @@ function FileSelected_EncodeImage(files)
             canvas.width = img.width;
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
+            selectedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
             imageIsLoaded_encode = true;
         
             encodeButton.disabled = false;
@@ -114,21 +117,15 @@ function FileSelected_EncodeFileToHide(files)
     }
 
     const fileNameLength = fileNameBytes.length;
-    const fileSizeBytes = new Uint8Array(5);
-    fileSizeBytes[0] = fileNameLength;
-    fileSizeBytes[1] = (file.size >>> 0) & 0xff;
-    fileSizeBytes[2] = (file.size >>> 8) & 0xff;
-    fileSizeBytes[3] = (file.size >>> 16) & 0xff;
-    fileSizeBytes[4] = (file.size >>> 24) & 0xff;
     
     const fr = new FileReader();
     fr.onload = function(ev)
     {
         const fileBytes = new Uint8Array(ev.target.result);
         const finalBytes = new Uint8Array(5 + fileNameBytes.length + fileBytes.length);
-        finalBytes.set(fileSizeBytes, 0);
-        finalBytes.set(fileNameBytes, 5);
-        finalBytes.set(fileBytes, fileNameBytes.length + 5);
+        finalBytes[0] = fileNameLength;
+        finalBytes.set(fileNameBytes, 1);
+        finalBytes.set(fileBytes, fileNameBytes.length + 1);
 
         fileToHideBytes = finalBytes;
         isFileToHideLoading = false;
@@ -196,13 +193,12 @@ async function EncodeFile()
     errorText.style.display = "none";
     DisableInputs("encode-div", true);
     const spinner = document.getElementById("encode-spinner").style;
-    spinner.visibility = "visible";
-    spinner.opacity = "1";
+    ToggleSpinner(spinner, true);
 
     await WaitFor(100); // need this for the animation to show up in firefox
     const data =
     {
-        data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+        data: selectedImageData,
         width: canvas.width,
         height: canvas.height
     };
@@ -235,9 +231,14 @@ async function EncodeFile()
 
     if (encoded !== undefined)
         SaveJpeg(encoded.data, imageName_encode);
-        
-    spinner.visibility = "hidden";
-    spinner.opacity = "0";
+
+    ToggleSpinner(spinner, false);
+}
+
+function ToggleSpinner(spinnerStyle, on)
+{
+    spinnerStyle.visibility = on ? "visible" : "hidden";
+    spinnerStyle.opacity = on ? 1 : 0;
 }
 
 const saveJpegLink = document.createElement("a");
@@ -250,8 +251,6 @@ function SaveJpeg(data, name)
         name = name.substring(0, idx) + ".jpg";
     else
         name += ".jpg";
-    
-    saveJpegLink.download = name;
 
     const blob = new Blob([data], {type: "image/jpeg"});
     if (window.navigator.msSaveOrOpenBlob)
@@ -259,6 +258,7 @@ function SaveJpeg(data, name)
     else
     {
         const url = window.URL.createObjectURL(blob);
+        saveJpegLink.download = name;
         saveJpegLink.href = url;
         saveJpegLink.click();
 
@@ -353,10 +353,15 @@ function ByteArrayToBits(bytes)
     return ret;
 }
 
+const saveExtractedFileLink = document.createElement("a");
+saveExtractedFileLink.style.display = "none";
+document.body.appendChild(saveExtractedFileLink);
+
 let imageIsLoaded_decode = false;
 let decodedImageData = undefined;
 function FileSelected_DecodeImage(files)
 {
+    DisableInputs("decode-div", true);
     imageIsLoaded_decode = false;
     decodedImageData = undefined;
 
@@ -366,8 +371,11 @@ function FileSelected_DecodeImage(files)
     const fileNameDiv = document.getElementById("decode-selectedfilename");
     fileNameDiv.innerText = "Decoding JPEG format";
     const spinner = document.getElementById("decode-spinner").style;
-    spinner.visibility = "visible";
-    spinner.opacity = "1";
+    ToggleSpinner(spinner, true);
+
+    document.getElementById("decode-result-text").style.display = "none";
+    document.getElementById("decode-result-file").style.display = "none";
+    document.getElementById("decode-result-before").style.display = "";
 
     const decodeButton = document.getElementById("decode-file-button");
     decodeButton.disabled = true;
@@ -392,29 +400,45 @@ function FileSelected_DecodeImage(files)
         }
 
         fileNameDiv.innerText = file.name;
-        spinner.visibility = "hidden";
-        spinner.opacity = "0";
         
         if (imageIsLoaded_decode)
             decodeButton.disabled = false;
+
+        ToggleSpinner(spinner, false);
+        DisableInputs("decode-div", false);
+    };
+
+    fr.onerror = function()
+    {
+        ToggleSpinner(spinner, false);
+        DisableInputs("decode-div", false);
     };
 
     fr.readAsArrayBuffer(file);
 }
 
-function DecodeFile()
+async function DecodeFile()
 {
+    DisableInputs("decode-div", true);
+
     const errorText = document.getElementById("decode-error-text");
     errorText.style.display = "none";
 
     const textarea = document.getElementById("decode-textarea");
     textarea.value = "";
 
+    document.getElementById("decode-result-text").style.display = "none";
+    document.getElementById("decode-result-file").style.display = "none";
+
+    const spinner = document.getElementById("decode-extract-spinner").style;
+    ToggleSpinner(spinner, true);
+    await WaitFor(100); // need this for the animation to show up in firefox
+
     let decodedBytes;
     let dataType;
     try
     {
-        const decodedData = TryDecodeFile();
+        const decodedData = await TryDecodeFile();
         decodedBytes = decodedData[0];
         dataType = decodedData[1];
         errorText.style.display = "none";
@@ -423,12 +447,14 @@ function DecodeFile()
     {
         errorText.innerText = "Cannot extract data from image: " + e;
         errorText.style.display = "";
+        ToggleSpinner(spinner, false);
+        DisableInputs("decode-div", false);
         return;
     }
 
     if (dataType === "text")
     {
-        const resultText = BytesToString(WordArrayToBytes(decodedBytes));
+        const resultText = BytesToString(decodedBytes);
         if (resultText === null)
         {
             errorText.innerText = "Error: the decoded text is not a valid utf-8 string (maybe the password is wrong)";
@@ -437,22 +463,50 @@ function DecodeFile()
         }
 
         textarea.value = resultText;
+
+        document.getElementById("decode-result-text").style.display = "";
+        document.getElementById("decode-result-before").style.display = "none";
     }
     else // dataType === "file"
     {
         const fileNameLength = decodedBytes[0];
-        const fileSize = decodedBytes[1] | (decodedBytes[2] << 8) | (decodedBytes[3] << 16) | (decodedBytes[4] << 24);
 
-        const fileName = BytesToString(decodedBytes.subarray(5, 5 + fileNameLength));
+        const fileName = BytesToString(decodedBytes.subarray(1, 1 + fileNameLength));
+        const fileBytes = decodedBytes.subarray(1 + fileNameLength);
+        
+        const blob = new Blob([fileBytes]);
+        const downloadButton = document.getElementById("decoded-file-download");
+        if (window.navigator.msSaveOrOpenBlob)
+            downloadButton.onclick = () => window.navigator.msSaveOrOpenBlob(blob, fileName);
+        else
+        {
+            const url = window.URL.createObjectURL(blob);
+            saveExtractedFileLink.download = fileName;
+            saveExtractedFileLink.href = url;
+            downloadButton.onclick = () => saveExtractedFileLink.click();
+            //window.URL.revokeObjectURL(url);
+        }
 
-        console.log("filename: " + fileName);
+        const fileSize =decodedBytes.length - 1 - fileNameLength;
+        let fileSizeStr;
+        if (fileSize < 1024)
+            fileSizeStr = fileSize + " bytes";
+        else if (fileSize < 1048576)
+            fileSizeStr = Math.round(fileSize / 1024) + " kB";
+        else
+            fileSizeStr = (fileSize / 1048576).toFixed(2) + " MB";
 
-        const fileBytes = decodedBytes.subarray(5 + fileNameLength);
-        console.log(fileBytes);
+        document.getElementById("decoded-file-name").innerText = fileName + " (" + fileSizeStr + ")";
+
+        document.getElementById("decode-result-file").style.display = "";
+        document.getElementById("decode-result-before").style.display = "none";
     }
+    
+    ToggleSpinner(spinner, false);
+    DisableInputs("decode-div", false);
 }
 
-function TryDecodeFile()
+async function TryDecodeFile()
 {
     const blocks = decodedImageData;
     const password = document.getElementById("decode-password").value;
@@ -512,6 +566,8 @@ function TryDecodeFile()
     const dataType = (((options >> 5) & 1) === 0) ? "text" : "file";
     //console.log(options);
 
+    await WaitUntilNextFrame();
+
     function* GetNextBit()
     {
         while (true)
@@ -539,7 +595,7 @@ function TryDecodeFile()
     let bitIndex = 0;
 
     const bitIterator = GetNextBit();
-
+    let counter = 0;
     for (let i = 0; i < embedDataLength; ++i)
     {
         const bit = bitIterator.next().value;
@@ -551,6 +607,12 @@ function TryDecodeFile()
             bitIndex = 0;
             extractedData.push(currentExtractedByte);
             currentExtractedByte = 0;
+        }
+
+        if (++counter === 131072)
+        {
+            counter = 0;
+            await WaitUntilNextFrame();
         }
     }
 

@@ -11,6 +11,7 @@ body
     background: #323639;
     color: white;
     margin: 0px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 
 button
@@ -37,12 +38,6 @@ button:disabled
 {
     background-color: #77abff;
     cursor: not-allowed;
-}
-
-.header
-{
-    font-size: 36px;
-    margin-bottom: 14px;
 }
 
 textarea
@@ -99,11 +94,14 @@ input[type=text]
 
 .loading-spinner
 {
+    background-image: url(spinner.svg);
     display: inline-block;
     width: 50px;
+    height: 50px;
     transform-origin: 50% 50%;
     animation: loading-spin 0.618s linear infinite;
     transition: opacity 0.1s linear, visibility 0.1s linear;
+    vertical-align: top;
 }
 
 @keyframes loading-spin
@@ -124,9 +122,14 @@ input[type=text]
 </style>
 </head>
 <body>
+<div id="compatibility-overlay" style="display: none; background: rgba(0, 0, 0, 0.95); position: fixed; top: 0px; left: 0px; width: 100%; height: 100%;">
+    <div style="display: table; margin: 30px; padding: 30px; font-size: 30px; background: black; border-radius: 30px;">Your browser does not support some of the features required to view this page.
+        <br><br>Please update your browser to the latest version,<br>or visit <a href="http://outdatedbrowser.com/" style="color: #14b5ff;">outdatedbrowser.com</a> to select new browser.
+    </div>
+</div>
 <div id="page">
 <div id="sidebar">
-    <div class="header">Stegoid</div>
+    <div style="font-size: 36px; margin-bottom: 14px;">Stegoid</div>
     <button class="sidebar-button" id="encode-layout-button" disabled
         onclick="
             document.getElementById('encode-div').style.display='';
@@ -218,26 +221,56 @@ If the value is lower, then the changes will be more noticeable, but also more d
         </div>
 
         <button id="encode-file-button" onclick="EncodeFile()" style="vertical-align: top;" disabled>Hide the data in the image</button>
-        <svg id="encode-spinner" class="loading-spinner" style="visibility: hidden; opacity: 0;" viewbox="0 0 50 50">
-            <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
-        </svg>
+        <div id="encode-spinner" class="loading-spinner" style="visibility: hidden; opacity: 0;"></div>
     </div>
 
     <div id="decode-div" style="display: none; width: 100%">
         <input type="file" id="decode-filechooser" style="display: none;" onclick="this.value=null" onchange="FileSelected_DecodeImage(this.files)" accept="image/jpeg">
+        
         <button onclick="document.getElementById('decode-filechooser').click()" style="margin-bottom: 10px;">Select a JPEG file</button>
         <div id="decode-selectedfilename" style="font-size: 20px; display: inline; margin-left: 10px;">No file selected</div>
-        <svg id="decode-spinner" class="loading-spinner" style="vertical-align: top; visibility: hidden; opacity: 0;" viewbox="0 0 50 50">
-            <circle cx="25" cy="25" r="20" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="90" stroke="white"></circle>
-        </svg>
+        <div id="decode-spinner" class="loading-spinner" style="visibility: hidden; opacity: 0;"></div>
         <div id="decode-error-text" class="error-text" style="display: none;"></div>
 
-        <textarea id="decode-textarea" readonly style="width: 100%; height: 200px; margin-bottom: 10px;" placeholder="The extracted text will appear here"></textarea>
-        <input type="text" id="decode-password" placeholder="Password" style="width: 100%; margin-bottom: 10px;">
-        <button id="decode-file-button" onclick="DecodeFile()" disabled>Extract data from the image</button>
+        <div id="decode-result-before">
+            <input type="text" id="decode-password" placeholder="Password" style="width: 100%; margin-bottom: 10px;">
+            <button id="decode-file-button" style="margin-bottom: 10px;" onclick="DecodeFile()" disabled>Extract data from the image</button>
+            <div id="decode-extract-spinner" class="loading-spinner" style="visibility: hidden; opacity: 0;"></div>
+        </div>
+        <div id="decode-result-text" style="display: none;">
+            <div style="font-size: 24px; margin-bottom: 10px;">The image contains the following text:</div>
+            <textarea id="decode-textarea" readonly style="width: 100%; height: 200px; margin-bottom: 10px;"></textarea>
+        </div>
+        <div id="decode-result-file" style="display: none;">
+            <div style="font-size: 24px; margin-bottom: 10px;">The image contains the following file:</div>
+            <div id="decoded-file-name" style="display: table; font-size: 24px; margin-bottom: 10px; background: #54575a; padding: 8px;">filename</div>
+            <button id="decoded-file-download">Download the file</button>
+        </div>
     </div>
 </div>
 </div>
+
+<script>
+// browser compatibility check
+var ok = false;
+try
+{
+    eval(
+    "(function() {\
+        async function a(){}\
+        ()=>{};\
+        const b=1; let c=2;\
+        function* d() { yield 0; }\
+    })()");
+    
+    ok = true;
+}
+catch (e) { console.log(e);}
+
+if (!ok)
+    document.getElementById("compatibility-overlay").style.display = "";
+
+</script>
 
 <script>
 async function WaitUntilNextFrame()
