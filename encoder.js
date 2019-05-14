@@ -800,7 +800,7 @@ function JPEGEncoder(quality, embedData, options, passwordHash)
                 DCV = processDU(VDU, fdtbl_UV, DCV, UVDC_HT, UVAC_HT, "cr");
                 x+=32;
 
-                if (++count === 8192)
+                if (++count === 512)
                 {
                     count = 0;
                     await WaitUntilNextFrame();

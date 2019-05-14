@@ -273,9 +273,11 @@ if (!ok)
 </script>
 
 <script>
-async function WaitUntilNextFrame()
+
+async function WaitUntilNextFrame() // not actually until next frame; faster with setImmediate
 {
-    return new Promise(resolve => window.requestAnimationFrame(resolve));
+    //return new Promise(resolve => window.requestAnimationFrame(resolve));
+    return new Promise(resolve => setImmediate(resolve));
 }
 
 async function WaitFor(timeout)
@@ -298,7 +300,9 @@ function BitCount(number)
 }
 </script>
 
+<script src="setImmediate.js"></script>
 <script src="crypto-js.js"></script>
+<script src="scrypt-async.js"></script>
 <script src="crypto-helper.js"></script>
 <script src="encoder.js"></script>
 <script src="decoder.js"></script>

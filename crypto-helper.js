@@ -9,9 +9,9 @@ function WordArrayToBytes(...wordArrays)
 
     for (let i = 0; i < wordArrays.length; ++i)
     {
-        const currentWordArras = wordArrays[i];
-        const words = currentWordArras.words;
-        const count = currentWordArras.sigBytes;
+        const currentWordArray = wordArrays[i];
+        const words = currentWordArray.words;
+        const count = currentWordArray.sigBytes;
 
         let index = 0;
         let offset = 0;
@@ -82,4 +82,20 @@ function AES256DecryptToText(ciphertext_bytearray, passphrase)
 {
     const result = AES256Decrypt(ciphertext_bytearray, passphrase);
     return result.toString(CryptoJS.enc.Utf8);
+}
+
+function Scrypt(password)
+{
+    return new Promise(resolve =>
+    {
+        scrypt(password, "Stegoid",
+        {
+            N: 32768,
+            r: 16,
+            dkLen: 64,
+            p: 2,
+            interruptStep: 1000,
+            encoding: "base64"
+        }, resolve);
+    });
 }

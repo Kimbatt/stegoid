@@ -195,7 +195,6 @@ async function EncodeFile()
     const spinner = document.getElementById("encode-spinner").style;
     ToggleSpinner(spinner, true);
 
-    await WaitFor(100); // need this for the animation to show up in firefox
     const data =
     {
         data: selectedImageData,
@@ -207,8 +206,9 @@ async function EncodeFile()
 
     const password = document.getElementById("encode-password").value;
     const passwordHash = SHA512(password, "wordarray").words;
+    const passwordScrypt = await Scrypt(password);
 
-    const encryptedBytes = AES256Encrypt(BytesToWordArray(dataBytes), password);
+    const encryptedBytes = AES256Encrypt(BytesToWordArray(dataBytes), passwordScrypt);
     const encryptedBits = ByteArrayToBits(encryptedBytes);
 
     let options = 0;
@@ -396,7 +396,6 @@ function FileSelected_DecodeImage(files)
             decodedImageData = undefined;
             errorText.innerText = "Cannot decode image: " + e;
             errorText.style.display = "";
-            console.log("ex");
         }
 
         fileNameDiv.innerText = file.name;
@@ -432,7 +431,6 @@ async function DecodeFile()
 
     const spinner = document.getElementById("decode-extract-spinner").style;
     ToggleSpinner(spinner, true);
-    await WaitFor(100); // need this for the animation to show up in firefox
 
     let decodedBytes;
     let dataType;
@@ -511,6 +509,7 @@ async function TryDecodeFile()
     const blocks = decodedImageData;
     const password = document.getElementById("decode-password").value;
     const passwordHash = SHA512(password, "wordarray").words;
+    const passwordScrypt = await Scrypt(password);
 
     const rowcount = blocks[0].length;
     const colcount = blocks[0][0].length;
@@ -609,14 +608,14 @@ async function TryDecodeFile()
             currentExtractedByte = 0;
         }
 
-        if (++counter === 131072)
+        if (++counter === 32768)
         {
             counter = 0;
             await WaitUntilNextFrame();
         }
     }
 
-    const decryptedDataBytes = AES256Decrypt(new Uint8Array(extractedData), password);
+    const decryptedDataBytes = AES256Decrypt(new Uint8Array(extractedData), passwordScrypt);
     if (decryptedDataBytes === null)
         throw "wrong password";
     

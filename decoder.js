@@ -398,7 +398,7 @@ var JpegImage = (function jpegImage()
                     if (mcu === mcuExpected)
                         break;
                         
-                    if (++counter === 16384)
+                    if (++counter === 1024)
                     {
                         counter = 0;
                         await WaitUntilNextFrame("decode scan");
@@ -617,7 +617,7 @@ var JpegImage = (function jpegImage()
                         line[sample + i] = r[offset++];
                 }
 
-                if (++counter === 32768)
+                if (++counter === 1024)
                 {
                     counter = 0;
                     await WaitUntilNextFrame("build component data");
@@ -711,7 +711,7 @@ var JpegImage = (function jpegImage()
                             {
                                 row[j] = new Int32Array(64);
                                 
-                                if (++counter === 16384)
+                                if (++counter === 1024)
                                 {
                                     counter = 0;
                                     await WaitUntilNextFrame("prepare");
